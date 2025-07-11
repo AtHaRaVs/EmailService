@@ -90,15 +90,15 @@ emailService.sendEmail(email, "unique-idempotency-key").then(console.log);
 ```mermaid
 graph TD
     A["sendEmail()"] --> B["Queue Task"]
-    B --> C[processQueue()]
-    C --> D{Rate Limit OK?}
-    D -->|Yes| E[Attempt Send]
-    E --> F{Success?}
-    F -->|Yes| G[Log + Mark Sent]
-    F -->|No| H[Failover + Retry w/ Backoff]
-    H -->|Retries Exhausted| I[Trip Circuit Breaker]
-    I --> J[Log Failure]
-    J --> K[Return Failed]
+    B --> C["processQueue()"]
+    C --> D{"Rate Limit OK?"}
+    D -->|Yes| E["Attempt Send"]
+    E --> F{"Success?"}
+    F -->|Yes| G["Log + Mark Sent"]
+    F -->|No| H["Failover + Retry w/ Backoff"]
+    H -->|Retries Exhausted| I["Trip Circuit Breaker"]
+    I --> J["Log Failure"]
+    J --> K["Return Failed"]
 ```
 
 ### Resilience Mechanisms
