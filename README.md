@@ -36,11 +36,24 @@ Built with production resilience in mind, it simulates the backend reliability r
 
 ---
 
+## PostMan Screenshorts
+### 📬 Sending Email Successfully
+<img src="https://github.com/user-attachments/assets/76ede9c6-4dc6-4288-890e-0efd009a7925" width="100%" />
+
+### ✅ Health Check (GET /)
+<img src="https://github.com/user-attachments/assets/703e564b-3d0f-4225-a494-13c04118b757" width="50%" />
+
+### 🔍 Tracking Email Status
+<img src="https://github.com/user-attachments/assets/d57f7f19-2a81-4990-b4f8-d7b99c6a08e2" width="75%" />
+
+  
+---
+
 ## 🛠️ Installation
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-org/email-service.git
+git clone https://github.com/AtHaRaVs/EmailService
 cd email-service
 
 # Install dependencies
@@ -89,16 +102,16 @@ emailService.sendEmail(email, "unique-idempotency-key").then(console.log);
 
 ```mermaid
 graph TD
-    A[sendEmail()] --> B[Queue Task]
-    B --> C[processQueue()]
-    C --> D{Rate Limit OK?}
-    D -->|Yes| E[Attempt Send]
-    E --> F{Success?}
-    F -->|Yes| G[Log + Mark Sent]
-    F -->|No| H[Failover + Retry w/ Backoff]
-    H -->|Retries Exhausted| I[Trip Circuit Breaker]
-    I --> J[Log Failure]
-    J --> K[Return Failed]
+    A["sendEmail()"] --> B["Queue Task"]
+    B --> C["processQueue()"]
+    C --> D{"Rate Limit OK?"}
+    D -->|Yes| E["Attempt Send"]
+    E --> F{"Success?"}
+    F -->|Yes| G["Log + Mark Sent"]
+    F -->|No| H["Failover + Retry w/ Backoff"]
+    H -->|Retries Exhausted| I["Trip Circuit Breaker"]
+    I --> J["Log Failure"]
+    J --> K["Return Failed"]
 ```
 
 ### Resilience Mechanisms
@@ -182,7 +195,7 @@ We follow a strict testing and design-first contribution workflow.
 
 ## 👨‍💻 Author
 
-**Atharav Singh Kotwal** — Lead Engineer, Fault-Tolerant Systems
+**Kunwar Atharav Singh Kotwal** — Lead Engineer, Fault-Tolerant Systems
 
 ---
 
