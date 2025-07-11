@@ -34,19 +34,83 @@ Built with production resilience in mind, it simulates the backend reliability r
  ┗ 📜email.log             # Output log file (auto-created during execution)
 ```
 
+## 📡 API Endpoints
+
+Your `EmailService` is deployable and exposed as a REST API.
+
+### 🟢 `POST /send` — Send an Email
+
+**Request Body:**
+
+```json
+{
+  "to": "user@example.com",
+  "subject": "Welcome!",
+  "body": "Thanks for signing up.",
+  "idempotencyKey": "welcome-abc-123"
+}
+```
+
+**Response:**
+
+```json
+{
+  "trackingId": "email-1723459123-xyz789",
+  "status": "sent",
+  "provider": "ProviderA",
+  "sentAt": 1723459123123
+}
+```
+
+---
+
+### 🔍 `GET /status/:trackingId` — Track Email Status
+
+**Example:**
+
+```
+GET /status/email-1723459123-xyz789
+```
+
+**Response:**
+
+```json
+{
+  "status": "sent",
+  "attempts": 1,
+  "provider": "ProviderA",
+  "sentAt": 1723459123123
+}
+```
+
+---
+
+### 💡 `GET /` — Health Check
+
+**Response:**
+
+```
+EmailService is up and running!
+```
+
+---
+
 ---
 
 ## PostMan Screenshorts
+
 ### 📬 Sending Email Successfully
+
 <img src="https://github.com/user-attachments/assets/76ede9c6-4dc6-4288-890e-0efd009a7925" width="100%" />
 
 ### ✅ Health Check (GET /)
+
 <img src="https://github.com/user-attachments/assets/703e564b-3d0f-4225-a494-13c04118b757" width="50%" />
 
 ### 🔍 Tracking Email Status
+
 <img src="https://github.com/user-attachments/assets/d57f7f19-2a81-4990-b4f8-d7b99c6a08e2" width="75%" />
 
-  
 ---
 
 ## 🛠️ Installation
