@@ -89,7 +89,7 @@ emailService.sendEmail(email, "unique-idempotency-key").then(console.log);
 
 ```mermaid
 graph TD
-    A[sendEmail()] --> B[Queue Task]
+    A["sendEmail()"] --> B["Queue Task"]
     B --> C[processQueue()]
     C --> D{Rate Limit OK?}
     D -->|Yes| E[Attempt Send]
