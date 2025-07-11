@@ -1,3 +1,6 @@
+const fs = require("fs");
+const path = require("path");
+
 const mockProviders = [
   {
     name: "ProviderA",
@@ -36,6 +39,15 @@ class EmailService {
     this.backoffBase = config.backoffBase || 1000;
 
     this.queueInterval = setInterval(() => this.processQueue(), 100);
+  }
+
+  logToFile(data) {
+    const logPath = path.join(__dirname, "email.log");
+    const logEntry = `[${new Date().toISOString()}] ${JSON.stringify(data)}\n`;
+
+    fs.appendFile(logPath, logEntry, (err) => {
+      if (err) console.error("Failed to log email:", err);
+    });
   }
 
   async sendEmail(email, idempotencyKey) {
@@ -86,6 +98,7 @@ class EmailService {
         };
 
         this.statusMap.set(task.trackingId, successStatus);
+        this.logToFile({ trackingId: task.trackingId, ...successStatus });
 
         if (task.idempotencyKey) {
           this.idempotencyCache.set(task.idempotencyKey, {
@@ -104,6 +117,7 @@ class EmailService {
         };
 
         this.statusMap.set(task.trackingId, failStatus);
+        this.logToFile({ trackingId: task.trackingId, ...failStatus });
         task.resolve({ trackingId: task.trackingId, ...failStatus });
       }
     }

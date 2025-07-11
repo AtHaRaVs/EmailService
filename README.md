@@ -1,139 +1,195 @@
-# EmailService
+# 📧 EmailService
 
-## Table of Contents
+A **high-reliability**, **multi-provider** email delivery system designed with **circuit breaker support**, **idempotency**, **rate limiting**, and **exponential backoff retry** — all implemented as a pluggable micro-library in Node.js.
 
-1. [Overview](#overview)
-2. [Architecture](#architecture)
-3. [Design Patterns & Principles](#design-patterns--principles)
-   - Circuit Breaker
-   - Exponential Backoff
-   - Queueing & Concurrency Control
-   - Idempotency
-   - Rate Limiting
-4. [Configuration & Extensibility](#configuration--extensibility)
-5. [Error Handling & Retry Strategy](#error-handling--retry-strategy)
-6. [Metrics, Monitoring & Observability](#metrics-monitoring--observability)
-7. [Runbook & Operational Guide](#runbook--operational-guide)
-8. [Testing Strategy](#testing-strategy)
-9. [CI/CD & Release Management](#cicd--release-management)
-10. [Contributing](#contributing)
-11. [License](#license)
+Built with production resilience in mind, it simulates the backend reliability required by systems like **iCloud Mail**, **Outlook**, or **Gmail** — ensuring email dispatches stay operational even under degraded conditions.
 
 ---
 
-## Overview
+## 🔍 Overview
 
-`EmailService` is a production-grade, fault-tolerant Node.js micro-library for multi-provider transactional email delivery. It encapsulates provider failover, idempotency, rate limiting, circuit breaker, and exponential backoff to ensure reliable email dispatch at scale.
+`EmailService` abstracts the complexity of provider failovers and reliability mechanisms to guarantee robust and traceable email delivery across distributed environments.
 
-## Architecture
+---
 
-- **Provider Abstraction**: Pluggable provider interface; supports multiple SMTP/HTTP-based providers.
-- **Core Components**:
-  - **Queue Manager**: In-memory task queue with consumption loop.
-  - **Rate Limiter**: Token bucket algorithm resets every minute.
-  - **Circuit Breaker**: Tracks failure count; trips on threshold; auto-resets after cooldown.
-  - **Idempotency Cache**: In-memory LRU cache for request deduplication.
-  - **Status Tracker**: Maps tracking IDs to lifecycle states (`queued` → `sending` → `sent`/`failed`).
+## ✨ Features
 
-## Design Patterns & Principles
+- ✅ **Multi-provider failover support**
+- 🧠 **Idempotency control** for safe retries
+- 🚦 **Rate limiting** with automatic resets
+- 💥 **Circuit Breaker** pattern for failure isolation
+- 🔁 **Exponential backoff retries** on transient failures
+- 🗂️ **Queued delivery pipeline** for high throughput
+- 🧪 **Battle-tested test suite with Jest**
+- 📜 **Log persistence** to disk (`email.log`)
 
-### Circuit Breaker
+---
 
-- Prevents cascading failures when provider endpoints are down.
-- **Threshold**: 3 consecutive failures → opens the circuit.
-- **Cooldown**: Default 30s, configurable for different SLAs.
+## 📁 Folder Structure
 
-### Exponential Backoff
-
-- On provider error, retries up to 3 attempts with backoff factor:  
-  `delay = base * 2^attempts` (configurable base).
-
-### Queueing & Concurrency Control
-
-- Single-worker model; can be extended to a worker pool.
-- Ensures ordered dispatch and backpressure handling.
-
-### Idempotency
-
-- Deduplicates requests with unique keys.
-- Prevents double-sends in retry and network failure scenarios.
-
-### Rate Limiting
-
-- Configurable max emails/minute.
-- Excess tasks remain queued until quota refresh.
-
-## Configuration & Extensibility
-
-```js
-const svc = new EmailService({
-  rateLimit: 100, // emails per minute
-  backoffBase: 500, // ms
-  circuitBreaker: {
-    threshold: 5,
-    coolDown: 60000, // ms
-  },
-  providers: [
-    /* custom providers */
-  ],
-});
+```
+📦email-service/
+ ┣ 📜emailService.js       # Core logic of EmailService
+ ┣ 📜test.js               # Jest test suite for unit and integration scenarios
+ ┗ 📜email.log             # Output log file (auto-created during execution)
 ```
 
-- Override default providers and behaviors via constructor.
+---
 
-## Error Handling & Retry Strategy
+## 🛠️ Installation
 
-1. **Attempt Send**:
-   - If circuit is open → immediate failure.
-   - Attempt up to 3 times across providers.
-2. **Failover**:
-   - Round-robin provider switch on each retry.
-3. **Final Failure**:
-   - Cache status; provide detailed error via `getStatus(trackingId)`.
+```bash
+# Clone the repo
+git clone https://github.com/your-org/email-service.git
+cd email-service
 
-## Metrics, Monitoring & Observability
+# Install dependencies
+npm install
+```
 
-- Expose Prometheus-compatible metrics:
-  - `email_sent_total`
-  - `email_failed_total`
-  - `circuit_breaker_state`
-  - `queue_length`
-  - `rate_limit_remaining`
-- Instrumentation hooks for custom logging and alerting.
+---
 
-## Runbook & Operational Guide
+## 🚀 Quick Start
 
-- **Deployment**:
-  - Embed service in your microservice or serverless function.
-- **Alerts**:
-  - Trigger on high failure rate or prolonged open circuit.
-- **SLA Considerations**:
-  - Maintain error budget; configure thresholds per provider SLA.
-- **Scaling**:
-  - Deploy multiple worker instances behind a distributed queue (e.g., Redis).
+```js
+const EmailService = require("./emailService");
 
-## Testing Strategy
+const emailService = new EmailService({
+  circuitBreaker: {
+    coolDown: 30000,
+    threshold: 3,
+  },
+  backoffBase: 1000, // ms
+});
 
-- **Unit Tests**: Jest mocks for providers and time-based behaviors.
-- **Integration Tests**: End-to-end envelope testing with real SMTP sandbox.
-- **Chaos Testing**: Simulate provider downtimes and network spikes.
-- **Load Testing**: Validate rate limiter under bursts.
+const email = {
+  to: "user@example.com",
+  subject: "Welcome to our service!",
+  body: "Thanks for signing up.",
+};
 
-## CI/CD & Release Management
+emailService.sendEmail(email, "unique-idempotency-key").then(console.log);
+```
 
-- GitHub Actions pipeline:
-  - Lint, unit tests, coverage enforcement.
-  - Docker image build and push.
-  - Semantic versioning via Conventional Commits.
+---
 
-## Contributing
+## ⚙️ Configuration Options
 
-1. Fork the repo.
-2. Create feature branch.
-3. Write tests before code.
-4. Run `npm test` and ensure coverage.
-5. Submit PR with detailed description and changelog entry.
+| Option           | Description                                       | Default                             |
+| ---------------- | ------------------------------------------------- | ----------------------------------- |
+| `circuitBreaker` | Object controlling failure threshold and cooldown | `{ threshold: 3, coolDown: 30000 }` |
+| `backoffBase`    | Milliseconds for exponential retry delay          | `1000`                              |
+| `rateLimit`      | Emails per minute allowed                         | `10`                                |
 
-## License
+---
 
-MIT © [Your Company]
+## 🏗 Architecture
+
+### Email Delivery Pipeline
+
+```mermaid
+graph TD
+    A[sendEmail()] --> B[Queue Task]
+    B --> C[processQueue()]
+    C --> D{Rate Limit OK?}
+    D -->|Yes| E[Attempt Send]
+    E --> F{Success?}
+    F -->|Yes| G[Log + Mark Sent]
+    F -->|No| H[Failover + Retry w/ Backoff]
+    H -->|Retries Exhausted| I[Trip Circuit Breaker]
+    I --> G2[Log Failure]
+    G2 --> J[Return Failed]
+```
+
+### Resilience Mechanisms
+
+- **Rate Limiter:** Max 10 emails/min (configurable)
+- **Circuit Breaker:** Triggers after 3 consecutive failures
+- **Retry Mechanism:** Exponential backoff across providers
+- **Idempotency Layer:** Ensures deduplication on retries
+
+---
+
+## 🧪 Testing Strategy
+
+The test suite (`test.js`) covers:
+
+- ✅ Successful email sends
+- 🔁 Idempotency handling
+- 🔄 Provider failover
+- 🚦 Rate limiting behavior
+- 💥 Circuit breaker tripping and cooldown
+
+### Run Tests
+
+```bash
+npm test
+```
+
+Tests are built using [Jest](https://jestjs.io) and include mocking of provider behaviors to simulate failure and success scenarios.
+
+---
+
+## 📊 Observability
+
+All status changes are persisted in a log file `email.log` in the following format:
+
+```text
+[2025-07-11T09:00:00.123Z] {
+  "trackingId": "email-...",
+  "status": "sent",
+  "provider": "ProviderA",
+  "sentAt": 1623345343543
+}
+```
+
+---
+
+## 📈 Metrics & Insights
+
+You can track delivery state via:
+
+```js
+// Check email delivery state
+emailService.getStatus(trackingId);
+
+// Check queue depth
+emailService.getQueueLength();
+```
+
+---
+
+## 📌 Design Decisions
+
+- **Circuit Breaker** follows [Netflix Hystrix](https://github.com/Netflix/Hystrix)-inspired thresholds and cooldown model.
+- **Exponential Backoff** used instead of constant retry to minimize impact on degraded systems.
+- **Idempotency Cache** ensures safety across retries and network glitches.
+- **Queue Processing Loop** decouples rate-limited delivery from direct `sendEmail` calls.
+- **Logging to Disk** enables auditability and replay in case of failures.
+
+---
+
+## 🤝 Contribution Guide
+
+We follow a strict testing and design-first contribution workflow.
+
+1. Fork the repository.
+2. Create a feature branch.
+3. Add unit tests for new behavior.
+4. Submit a PR with clear description.
+
+---
+
+## 👨‍💻 Author
+
+**Atharav Singh Kotwal** — Lead Engineer, Fault-Tolerant Systems
+
+---
+
+## ⚖️ License
+
+[MIT License](./LICENSE)
+
+---
+
+> _"This service is hardened for scale. Think billions of transactions across continents. Treat it accordingly."_
