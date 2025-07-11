@@ -40,7 +40,7 @@ Built with production resilience in mind, it simulates the backend reliability r
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-org/email-service.git
+git clone https://github.com/AtHaRaVs/EmailService
 cd email-service
 
 # Install dependencies
@@ -182,7 +182,7 @@ We follow a strict testing and design-first contribution workflow.
 
 ## 👨‍💻 Author
 
-**Atharav Singh Kotwal** — Lead Engineer, Fault-Tolerant Systems
+**Kunwar Atharav Singh Kotwal** — Lead Engineer, Fault-Tolerant Systems
 
 ---
 
