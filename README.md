@@ -85,9 +85,7 @@ emailService.sendEmail(email, "unique-idempotency-key").then(console.log);
 
 ## 🏗 Architecture
 
-### Email Delivery Pipeline
-
-```mermaid
+````mermaid
 graph TD
     A[sendEmail()] --> B[Queue Task]
     B --> C[processQueue()]
@@ -97,9 +95,8 @@ graph TD
     F -->|Yes| G[Log + Mark Sent]
     F -->|No| H[Failover + Retry w/ Backoff]
     H -->|Retries Exhausted| I[Trip Circuit Breaker]
-    I --> G2[Log Failure]
-    G2 --> J[Return Failed]
-```
+    I --> J[Log Failure]
+    J --> K[Return Failed]
 
 ### Resilience Mechanisms
 
@@ -124,7 +121,7 @@ The test suite (`test.js`) covers:
 
 ```bash
 npm test
-```
+````
 
 Tests are built using [Jest](https://jestjs.io) and include mocking of provider behaviors to simulate failure and success scenarios.
 
@@ -166,17 +163,6 @@ emailService.getQueueLength();
 - **Idempotency Cache** ensures safety across retries and network glitches.
 - **Queue Processing Loop** decouples rate-limited delivery from direct `sendEmail` calls.
 - **Logging to Disk** enables auditability and replay in case of failures.
-
----
-
-## 🤝 Contribution Guide
-
-We follow a strict testing and design-first contribution workflow.
-
-1. Fork the repository.
-2. Create a feature branch.
-3. Add unit tests for new behavior.
-4. Submit a PR with clear description.
 
 ---
 
