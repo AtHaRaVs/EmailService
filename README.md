@@ -1,227 +1,139 @@
 # EmailService
 
-A production-grade, fault-tolerant Node.js micro-library for multi-provider transactional email delivery.
-
 ## Table of Contents
 
-- [High-Level Overview](#high-level-overview)  
-- [Key Features](#key-features)  
-- [Architecture](#architecture)  
-- [Usage](#usage)  
-  - [Installation](#installation)  
-  - [Quick Start](#quick-start)  
-  - [Advanced Configuration](#advanced-configuration)  
-  - [Extending the Service](#extending-the-service)  
-- [Operational Guide](#operational-guide)  
-  - [Metrics & Observability](#metrics--observability)  
-  - [Runbook](#runbook)  
-- [Testing Strategy](#testing-strategy)  
-- [Design Decisions](#design-decisions)  
-- [Contributing](#contributing)  
-- [License](#license)  
+1. [Overview](#overview)
+2. [Architecture](#architecture)
+3. [Design Patterns & Principles](#design-patterns--principles)
+   - Circuit Breaker
+   - Exponential Backoff
+   - Queueing & Concurrency Control
+   - Idempotency
+   - Rate Limiting
+4. [Configuration & Extensibility](#configuration--extensibility)
+5. [Error Handling & Retry Strategy](#error-handling--retry-strategy)
+6. [Metrics, Monitoring & Observability](#metrics-monitoring--observability)
+7. [Runbook & Operational Guide](#runbook--operational-guide)
+8. [Testing Strategy](#testing-strategy)
+9. [CI/CD & Release Management](#cicd--release-management)
+10. [Contributing](#contributing)
+11. [License](#license)
 
 ---
 
-## High-Level Overview
+## Overview
 
-**EmailService** abstracts provider fail-over, rate limiting, automatic retries with exponential back-off, circuit breaking, and idempotency behind a unified API. The goal is **five-nines reliability** for critical notification flows without burdening product teams with cross-provider logic.
-
----
-
-## Key Features
-
-- **Multi-Provider Rotation** – Round-robin fallback between any number of SMTP or HTTP email gateways.  
-- **Circuit Breaker** – Opens after N consecutive failures per provider, auto-resets after a configurable cool-down.  
-- **Exponential Back-Off Retries** – Configurable base delay and retry ceiling.  
-- **Global Rate Limiting** – Sliding window limiter (default 10 emails per minute) to respect provider quotas.  
-- **Idempotency Cache** – Guarantees exactly-once semantics for external callers.  
-- **In-Memory Queue** – Decouples caller latency from provider throughput.  
-- **Pluggable Observability** – Emits hookable events for metrics, tracing, and structured logs.  
-- **100% Test Coverage** – Jest suite validates all edge cases, including degraded-mode scenarios.  
-
----
+`EmailService` is a production-grade, fault-tolerant Node.js micro-library for multi-provider transactional email delivery. It encapsulates provider failover, idempotency, rate limiting, circuit breaker, and exponential backoff to ensure reliable email dispatch at scale.
 
 ## Architecture
 
-```mermaid
-flowchart LR
-  Client -->|sendEmail()| Queue[In-Memory Queue]
-  Queue -->|processQueue()| EmailService
-  subgraph EmailService
-    Policy[Rate Limiter]
-    Policy -->|allow| Dispatcher
-    Dispatcher -->|attemptSend()| ProviderA & ProviderB
-    Dispatcher -->|fallback| ProviderB
-    Dispatcher -->|update| CircuitBreaker
-    Dispatcher -->|update| IdempotencyCache
-  end
-```
+- **Provider Abstraction**: Pluggable provider interface; supports multiple SMTP/HTTP-based providers.
+- **Core Components**:
+  - **Queue Manager**: In-memory task queue with consumption loop.
+  - **Rate Limiter**: Token bucket algorithm resets every minute.
+  - **Circuit Breaker**: Tracks failure count; trips on threshold; auto-resets after cooldown.
+  - **Idempotency Cache**: In-memory LRU cache for request deduplication.
+  - **Status Tracker**: Maps tracking IDs to lifecycle states (`queued` → `sending` → `sent`/`failed`).
 
-### Component Responsibilities
+## Design Patterns & Principles
 
-| Component          | Responsibility                                    |
-|-------------------|---------------------------------------------------|
-| Queue             | Buffered hand-off; isolates spikes.               |
-| Rate Limiter      | Throttles throughput per configured window.       |
-| Dispatcher        | Orchestrates retries, provider rotation, status.  |
-| Circuit Breaker   | Protects downstream providers; trips on failure.  |
-| Idempotency Cache | Prevents duplicate sends across restarts.         |
+### Circuit Breaker
 
----
+- Prevents cascading failures when provider endpoints are down.
+- **Threshold**: 3 consecutive failures → opens the circuit.
+- **Cooldown**: Default 30s, configurable for different SLAs.
 
-## Usage
+### Exponential Backoff
 
-### Installation
+- On provider error, retries up to 3 attempts with backoff factor:  
+  `delay = base * 2^attempts` (configurable base).
 
-```bash
-npm install @your-org/emailservice
-```
+### Queueing & Concurrency Control
 
-### Quick Start
+- Single-worker model; can be extended to a worker pool.
+- Ensures ordered dispatch and backpressure handling.
 
-```javascript
-const EmailService = require('@your-org/emailservice');
+### Idempotency
 
-const emailService = new EmailService({
-  rateLimit: 50,               // 50 emails / min
-  backoffBase: 250,            // 250 ms base for retries
+- Deduplicates requests with unique keys.
+- Prevents double-sends in retry and network failure scenarios.
+
+### Rate Limiting
+
+- Configurable max emails/minute.
+- Excess tasks remain queued until quota refresh.
+
+## Configuration & Extensibility
+
+```js
+const svc = new EmailService({
+  rateLimit: 100, // emails per minute
+  backoffBase: 500, // ms
   circuitBreaker: {
     threshold: 5,
-    coolDown: 15_000           // 15 s
+    coolDown: 60000, // ms
   },
   providers: [
-    new SendGridAdapter(process.env.SENDGRID_TOKEN),
-    new SESAdapter({ region: 'us-east-1' })
-  ]
+    /* custom providers */
+  ],
 });
-
-const email = {
-  to: 'user@example.com',
-  subject: 'Welcome',
-  body: 'Thanks for signing up!'
-};
-
-const { trackingId, status } = await emailService.sendEmail(email, 'signup-123');
-console.log({ trackingId, status });
 ```
 
----
+- Override default providers and behaviors via constructor.
 
-## Advanced Configuration
+## Error Handling & Retry Strategy
 
-| Option             | Type / Default                      | Description                                         |
-|--------------------|-------------------------------------|-----------------------------------------------------|
-| providers          | `Provider[]` (required)             | Ordered list of adapters implementing `send()`.     |
-| rateLimit          | `number` / `10`                     | Max messages per 60s window.                        |
-| backoffBase        | `number` / `1000`                   | Base delay in ms for exponential retry.             |
-| circuitBreaker     | `object`                            | `{ threshold: 3, coolDown: 30_000 }`                |
-| idempotencyTTL     | `number` / `3600000`                | TTL for idempotency cache in ms.                    |
-| queueIntervalMs    | `number` / `100`                    | Polling interval for processing queue.              |
+1. **Attempt Send**:
+   - If circuit is open → immediate failure.
+   - Attempt up to 3 times across providers.
+2. **Failover**:
+   - Round-robin provider switch on each retry.
+3. **Final Failure**:
+   - Cache status; provide detailed error via `getStatus(trackingId)`.
 
----
+## Metrics, Monitoring & Observability
 
-## Extending the Service
+- Expose Prometheus-compatible metrics:
+  - `email_sent_total`
+  - `email_failed_total`
+  - `circuit_breaker_state`
+  - `queue_length`
+  - `rate_limit_remaining`
+- Instrumentation hooks for custom logging and alerting.
 
-### Creating a Provider Adapter
+## Runbook & Operational Guide
 
-```typescript
-class PostmarkAdapter {
-  constructor(apiKey) {
-    this.client = new Postmark.Client(apiKey);
-  }
-
-  name = 'Postmark';
-
-  async send(email) {
-    const response = await this.client.sendEmail({
-      From: 'noreply@your.org',
-      To: email.to,
-      Subject: email.subject,
-      HtmlBody: email.body
-    });
-    if (response.ErrorCode !== 0) throw new Error(response.Message);
-    return `Email sent via Postmark: ${email.subject}`;
-  }
-}
-```
-
-```javascript
-emailService.addProvider(new PostmarkAdapter(process.env.POSTMARK_TOKEN));
-```
-
-### Overriding Storage
-
-```javascript
-emailService.setIdempotencyStore(new RedisCache({ ttl: 3600 }));
-```
-
----
-
-## Operational Guide
-
-### Metrics & Observability
-
-| Metric                             | Type     | Description                            |
-|-----------------------------------|----------|----------------------------------------|
-| `email_sent_total{provider}`      | Counter  | Successful sends per provider.         |
-| `email_failure_total{provider}`   | Counter  | Failed attempts per provider.          |
-| `email_queue_depth`               | Gauge    | Current queue length.                  |
-| `circuit_breaker_open{provider}`  | Gauge    | 1 if open, 0 otherwise.                |
-| `email_send_duration_ms`         | Histogram| End-to-end latency.                    |
-
-```javascript
-emailService.on('metrics', (metric) => pushToPrometheus(metric));
-```
-
-### Runbook
-
-| Scenario                  | Operator Action                                                  |
-|---------------------------|------------------------------------------------------------------|
-| Queue backlog > 100       | Scale service instances; verify provider availability.          |
-| Circuit breaker open      | Investigate provider status; check credential validity.         |
-| High failure rate         | Enable verbose logging: `DEBUG=emailservice* node app.js`.      |
-| Memory Leak Suspected     | Restart with `--max-old-space-size`; confirm idempotency TTL.   |
-
----
+- **Deployment**:
+  - Embed service in your microservice or serverless function.
+- **Alerts**:
+  - Trigger on high failure rate or prolonged open circuit.
+- **SLA Considerations**:
+  - Maintain error budget; configure thresholds per provider SLA.
+- **Scaling**:
+  - Deploy multiple worker instances behind a distributed queue (e.g., Redis).
 
 ## Testing Strategy
 
-- **Unit Tests** – 100% branch coverage via Jest. Simulate flake, latency, rate limits.
-- **Contract Tests** – Each adapter validated against provider sandbox APIs.
-- **Load Tests** – `k6` scripts sustaining 1k RPS to test queue and GC stability.
-- **Chaos Suite** – Inject network errors and 5xx responses to validate resilience.
+- **Unit Tests**: Jest mocks for providers and time-based behaviors.
+- **Integration Tests**: End-to-end envelope testing with real SMTP sandbox.
+- **Chaos Testing**: Simulate provider downtimes and network spikes.
+- **Load Testing**: Validate rate limiter under bursts.
 
-```bash
-npm test
-npm run load-test
-```
+## CI/CD & Release Management
 
----
-
-## Design Decisions
-
-- **In-Memory Queue vs Distributed** – Chose in-memory for minimal latency; users can plug in external queues.
-- **Backoff Formula** – `delay = backoffBase × 2^attempt`. Predictable. Overrideable for advanced users.
-- **Circuit Breaker Scope** – Global across providers to prevent cascade; can be made per-provider if needed.
-- **No Logger Lock-in** – Emits structured events instead of direct logs.
-
----
+- GitHub Actions pipeline:
+  - Lint, unit tests, coverage enforcement.
+  - Docker image build and push.
+  - Semantic versioning via Conventional Commits.
 
 ## Contributing
 
-1. Fork & clone this repo.  
-2. Run `npm ci` to install exact dependencies.  
-3. Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, etc.)  
-4. Add/modify unit tests. Ensure `npm test` passes.  
-5. Submit PR — template validates lint, types, and 95%+ coverage.  
-6. We follow [DORA metrics](https://www.devops-research.com/research.html); PRs should keep MTTR and frequency healthy.
-
----
+1. Fork the repo.
+2. Create feature branch.
+3. Write tests before code.
+4. Run `npm test` and ensure coverage.
+5. Submit PR with detailed description and changelog entry.
 
 ## License
 
-<<<<<<< HEAD
-MIT © Your Organization 2025
-=======
-MIT © Your Organization 2025
->>>>>>> bdf52cd1d717258026641eb8d96508ccefb76ea2
+MIT © [Your Company]
