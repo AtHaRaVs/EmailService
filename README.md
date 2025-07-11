@@ -220,4 +220,8 @@ npm run load-test
 
 ## License
 
+<<<<<<< HEAD
 MIT © Your Organization 2025
+=======
+MIT © Your Organization 2025
+>>>>>>> bdf52cd1d717258026641eb8d96508ccefb76ea2
