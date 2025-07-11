@@ -36,14 +36,16 @@ Built with production resilience in mind, it simulates the backend reliability r
 
 ---
 
----
 ## PostMan Screenshorts
- - successfully sending email
-   <img width="1275" height="689" alt="image" src="https://github.com/user-attachments/assets/76ede9c6-4dc6-4288-890e-0efd009a7925" />
- - Chceking service health
-   <img width="595" height="566" alt="image" src="https://github.com/user-attachments/assets/703e564b-3d0f-4225-a494-13c04118b757" />
-- Tracking already sent email via id
-  <img width="760" height="623" alt="image" src="https://github.com/user-attachments/assets/d57f7f19-2a81-4990-b4f8-d7b99c6a08e2" />
+### 📬 Sending Email Successfully
+<img src="https://github.com/user-attachments/assets/76ede9c6-4dc6-4288-890e-0efd009a7925" width="100%" />
+
+### ✅ Health Check (GET /)
+<img src="https://github.com/user-attachments/assets/703e564b-3d0f-4225-a494-13c04118b757" width="50%" />
+
+### 🔍 Tracking Email Status
+<img src="https://github.com/user-attachments/assets/d57f7f19-2a81-4990-b4f8-d7b99c6a08e2" width="75%" />
+
   
 ---
 
