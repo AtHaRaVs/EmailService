@@ -5,6 +5,7 @@ const app = express();
 app.use(express.json());
 
 const emailService = new EmailService();
+const port = process.env.PORT || 3000;
 
 app.post("/send", async (req, res) => {
   const { to, subject, body, idempotencyKey } = req.body;
@@ -29,6 +30,6 @@ app.get("/", (req, res) => {
   res.send("EmailService is up and running!");
 });
 
-app.listen(3000, () => {
+app.listen(port, () => {
   console.log("server running on port 3000");
 });
