@@ -255,14 +255,6 @@ We follow a strict testing and design-first contribution workflow.
 3. Add unit tests for new behavior.
 4. Submit a PR with clear description.
 
----
-
-## 👨‍💻 Author
-
-**Kunwar Atharav Singh Kotwal** — Lead Engineer, Fault-Tolerant Systems
-
----
-
 ## ⚖️ License
 
 [MIT License](./LICENSE)
